@@ -1,17 +1,20 @@
 esphome:
   name: "irrigation-system"
   friendly_name: Irrigation System
+  on_boot:
+    priority: -10
+    then:
+      - logger.log: "System booted. Waiting 5 minutes for sensors to stabilize..."
+      - script.execute: startup_delay_script
 
 esp32:
   board: esp32dev
   framework:
     type: esp-idf
 
-# Enable logging
 logger:
   level: DEBUG
 
-# Enable Home Assistant API
 api:
   encryption:
     key: !secret api_encryption_key
@@ -23,8 +26,6 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
   ap:
     ssid: "Irrigation Fallback Hotspot"
     password: !secret fallback_ap_password
@@ -34,6 +35,48 @@ web_server:
   port: 80
   version: 2
 
+script:
+  # Separate safety timers to avoid C++ template errors
+  - id: safety_hibiscus
+    mode: restart
+    then:
+      - delay: 2min
+      - logger.log: "Safety Timer (Hibiscus) reached - Shutting down"
+      - switch.turn_off: pump_main
+      - switch.turn_off: valve_hibiscus
+
+  - id: safety_onion
+    mode: restart
+    then:
+      - delay: 10s
+      - logger.log: "Safety Timer (Onion) reached - Shutting down"
+      - switch.turn_off: pump_main
+      - switch.turn_off: valve_onion
+
+  - id: safety_ficus
+    mode: restart
+    then:
+      - delay: 30s
+      - logger.log: "Safety Timer (Ficus) reached - Shutting down"
+      - switch.turn_off: pump_main
+      - switch.turn_off: valve_ficus
+
+  # Cooldown timer (2h lock after watering)
+  - id: cooldown_script
+    mode: single
+    then:
+      - delay: 2h
+      - logger.log: "Cooldown finished - Automation ready again"
+      
+  # Startup delay (locks automation for 5min, then unlocks)
+  - id: startup_delay_script
+    mode: single
+    then:
+      - script.execute: cooldown_script # Lock it immediately
+      - delay: 5min
+      - script.stop: cooldown_script    # Force unlock after 5 mins
+      - logger.log: "Startup stabilization finished. Automation UNLOCKED."
+
 # Soil Moisture Sensors
 sensor:
   - platform: adc
@@ -41,68 +84,99 @@ sensor:
     name: "Soil Hibiscus"
     id: soil_hibiscus
     attenuation: 12db
-    device_class: ""
     unit_of_measurement: "%"
     icon: "mdi:water-percent"
     update_interval: 1s
     filters:
       - median:
           window_size: 300
-          send_every: 10
+          send_every: 30
       - calibrate_linear:
           - 2.85 -> 0.0
           - 1.05 -> 100.0
       - lambda: "return (x < 0) ? 0 : (x > 100) ? 100 : x;"
-      - throttle: 10s
+      - or:
+          - delta: 0.1
+          - heartbeat: 15min
+    on_value_range:
+      - below: 80.0
+        then:
+          - if:
+              condition:
+                all:
+                  - switch.is_off: pump_main
+                  - not:
+                      script.is_running: cooldown_script
+              then:
+                - logger.log: "Automation: Hibiscus dry, starting watering"
+                - switch.turn_on: valve_hibiscus
+                - script.execute: cooldown_script
 
   - platform: adc
     pin: 34
     name: "Soil Ficus"
     id: soil_ficus
     attenuation: 12db
-    device_class: ""
     unit_of_measurement: "%"
     icon: "mdi:water-percent"
     update_interval: 1s
     filters:
       - median:
           window_size: 300
-          send_every: 10
+          send_every: 30
       - calibrate_linear:
           - 2.85 -> 0.0
           - 1.05 -> 100.0
       - lambda: "return (x < 0) ? 0 : (x > 100) ? 100 : x;"
-      - throttle: 10s
+      - or:
+          - delta: 0.1
+          - heartbeat: 15min
+    on_value_range:
+      - below: 80.0
+        then:
+          - if:
+              condition:
+                all:
+                  - switch.is_off: pump_main
+                  - not:
+                      script.is_running: cooldown_script
+              then:
+                - logger.log: "Automation: Ficus dry, starting watering"
+                - switch.turn_on: valve_ficus
+                - script.execute: cooldown_script
 
   - platform: adc
     pin: 32
     name: "Soil Onion"
     id: soil_onion
     attenuation: 12db
-    device_class: ""
     unit_of_measurement: "%"
     icon: "mdi:water-percent"
     update_interval: 1s
     filters:
       - median:
           window_size: 300
-          send_every: 10
+          send_every: 30
       - calibrate_linear:
           - 2.85 -> 0.0
           - 1.05 -> 100.0
       - lambda: "return (x < 0) ? 0 : (x > 100) ? 100 : x;"
-      - throttle: 10s
-
-script:
-  - id: safety_timer
-    mode: restart # Every time a valve is turned on, the 5s starts over
-    then:
-      - delay: 5s
-      - logger.log: "Safety Timer reached - Shutting down all outputs"
-      - switch.turn_off: pump_main
-      - switch.turn_off: valve_hibiscus
-      - switch.turn_off: valve_onion
-      - switch.turn_off: valve_ficus
+      - or:
+          - delta: 0.1
+          - heartbeat: 15min
+    on_value_range:
+      - below: 80.0
+        then:
+          - if:
+              condition:
+                all:
+                  - switch.is_off: pump_main
+                  - not:
+                      script.is_running: cooldown_script
+              then:
+                - logger.log: "Automation: Onion dry, starting watering"
+                - switch.turn_on: valve_onion
+                - script.execute: cooldown_script
 
 switch:
   - platform: gpio
@@ -110,7 +184,6 @@ switch:
     name: "Pump"
     id: pump_main
     restore_mode: ALWAYS_OFF
-    internal: false # Keep visible in UI
     icon: "mdi:water-pump"
 
   - platform: gpio
@@ -118,42 +191,42 @@ switch:
     name: "Valve Hibiscus"
     id: valve_hibiscus
     restore_mode: ALWAYS_OFF
-    icon: "mdi:valve"
     on_turn_on:
       - switch.turn_off: valve_onion
       - switch.turn_off: valve_ficus
       - delay: 500ms
       - switch.turn_on: pump_main
-      - script.execute: safety_timer
+      - script.execute: safety_hibiscus
     on_turn_off:
       - switch.turn_off: pump_main
+      - script.stop: safety_hibiscus
 
   - platform: gpio
     pin: 14
     name: "Valve Onion"
     id: valve_onion
     restore_mode: ALWAYS_OFF
-    icon: "mdi:valve"
     on_turn_on:
       - switch.turn_off: valve_hibiscus
       - switch.turn_off: valve_ficus
       - delay: 500ms
       - switch.turn_on: pump_main
-      - script.execute: safety_timer
+      - script.execute: safety_onion
     on_turn_off:
       - switch.turn_off: pump_main
+      - script.stop: safety_onion
 
   - platform: gpio
     pin: 12
     name: "Valve Ficus"
     id: valve_ficus
     restore_mode: ALWAYS_OFF
-    icon: "mdi:valve"
     on_turn_on:
       - switch.turn_off: valve_hibiscus
       - switch.turn_off: valve_onion
       - delay: 500ms
       - switch.turn_on: pump_main
-      - script.execute: safety_timer
+      - script.execute: safety_ficus
     on_turn_off:
       - switch.turn_off: pump_main
+      - script.stop: safety_ficus
