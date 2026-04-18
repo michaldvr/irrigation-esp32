@@ -35,6 +35,11 @@ web_server:
   port: 80
   version: 2
 
+time:
+  - platform: sntp
+    id: my_time
+    timezone: "Europe/Prague"
+
 script:
   # Separate safety timers to avoid C++ template errors
   - id: safety_hibiscus
@@ -107,6 +112,9 @@ sensor:
                   - switch.is_off: pump_main
                   - not:
                       script.is_running: cooldown_script
+                  - lambda: |-
+                      auto hour = id(my_time).now().hour;
+                      return (hour >= 14 && hour < 20);
               then:
                 - logger.log: "Automation: Hibiscus dry, starting watering"
                 - switch.turn_on: valve_hibiscus
@@ -140,6 +148,9 @@ sensor:
                   - switch.is_off: pump_main
                   - not:
                       script.is_running: cooldown_script
+                  - lambda: |-
+                      auto hour = id(my_time).now().hour;
+                      return (hour >= 14 && hour < 20);
               then:
                 - logger.log: "Automation: Ficus dry, starting watering"
                 - switch.turn_on: valve_ficus
@@ -173,6 +184,9 @@ sensor:
                   - switch.is_off: pump_main
                   - not:
                       script.is_running: cooldown_script
+                  - lambda: |-
+                      auto hour = id(my_time).now().hour;
+                      return (hour >= 14 && hour < 20);
               then:
                 - logger.log: "Automation: Onion dry, starting watering"
                 - switch.turn_on: valve_onion
