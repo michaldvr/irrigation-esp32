@@ -82,6 +82,21 @@ script:
       - script.stop: cooldown_script    # Force unlock after 5 mins
       - logger.log: "Startup stabilization finished. Automation UNLOCKED."
 
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: 13
+      mode: INPUT_PULLUP
+      inverted: false # Teď: rozpojeno (voda je) = True, spojeno (voda není) = False
+    name: "Water Level Status"
+    id: water_level_status
+    device_class: problem # Ukáže "OK" když je voda a "Problem" když dojde
+    on_state:
+      then:
+        - logger.log:
+            format: "Tank sensor changed: %s"
+            args: [ 'id(water_level_status).state ? "WATER OK" : "LOW WATER LEVEL"' ]
+
 # Soil Moisture Sensors
 sensor:
   - platform: adc
@@ -108,7 +123,8 @@ sensor:
         - if:
             condition:
               all:
-                - lambda: 'return x < 85.0;' 
+                - lambda: 'return x < 85.0;'
+                - binary_sensor.is_on: water_level_status
                 - switch.is_off: pump_main
                 - not:
                     script.is_running: cooldown_script
@@ -145,6 +161,7 @@ sensor:
             condition:
               all:
                 - lambda: 'return x < 80.0;' # Limit Ficus
+                - binary_sensor.is_on: water_level_status
                 - switch.is_off: pump_main
                 - not:
                     script.is_running: cooldown_script
@@ -180,7 +197,8 @@ sensor:
         - if:
             condition:
               all:
-                - lambda: 'return x < 80.0;' # Limit pro Onion
+                - lambda: 'return x < 80.0;' # Limit Onion
+                - binary_sensor.is_on: water_level_status
                 - switch.is_off: pump_main
                 - not:
                     script.is_running: cooldown_script
