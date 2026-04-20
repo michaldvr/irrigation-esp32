@@ -87,10 +87,10 @@ binary_sensor:
     pin:
       number: 13
       mode: INPUT_PULLUP
-      inverted: false # Teď: rozpojeno (voda je) = True, spojeno (voda není) = False
+      inverted: false # Open (water present) = True, Closed (no water) = False
     name: "Water Level Status"
     id: water_level_status
-    device_class: problem # Ukáže "OK" když je voda a "Problem" když dojde
+    device_class: problem # Shows "OK" when there is water and "Problem" when dry
     on_state:
       then:
         - logger.log:
