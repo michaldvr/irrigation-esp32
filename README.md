@@ -20,8 +20,8 @@ An automated soil moisture monitoring and irrigation control system for three pl
 1x Water Level **Float Switch** (GPIO 13)
 
 **Actuators:**
-  - 3x Solenoid Valves (GPIO 27, 14, 12)
-  - 1x Main Submersible Pump (GPIO 26)
+  - 3x Solenoid Valves (GPIO 25, 26, 27)
+  - 1x Main Submersible Pump (GPIO 33)
 
 ## 📦 Installation
 1. Clone this repository into your ESPHome configuration directory.

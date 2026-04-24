@@ -197,7 +197,7 @@ sensor:
         - if:
             condition:
               all:
-                - lambda: 'return x < 80.0;' # Limit Onion
+                - lambda: 'return x < 78.0;' # Limit Onion
                 - binary_sensor.is_off: water_level_status
                 - switch.is_off: pump_main
                 - not:
@@ -212,14 +212,14 @@ sensor:
 
 switch:
   - platform: gpio
-    pin: 26
+    pin: 33
     name: "Pump"
     id: pump_main
     restore_mode: ALWAYS_OFF
     icon: "mdi:water-pump"
 
   - platform: gpio
-    pin: 27
+    pin: 25
     name: "Valve Hibiscus"
     id: valve_hibiscus
     restore_mode: ALWAYS_OFF
@@ -234,7 +234,7 @@ switch:
       - script.stop: safety_hibiscus
 
   - platform: gpio
-    pin: 14
+    pin: 26
     name: "Valve Onion"
     id: valve_onion
     restore_mode: ALWAYS_OFF
@@ -249,7 +249,7 @@ switch:
       - script.stop: safety_onion
 
   - platform: gpio
-    pin: 12
+    pin: 27
     name: "Valve Ficus"
     id: valve_ficus
     restore_mode: ALWAYS_OFF
