@@ -13,15 +13,20 @@ An automated soil moisture monitoring and irrigation control system for three pl
 **Time-Window Logic:** Irrigation is restricted to specific hours (14:00 - 20:00) to remove night time and morning time with sun on moisture sensors.
 
 ## 🛠 Hardware
-**MCU: ESP32** (DevKit V1)
+**MCU:** ESP32-DevKitC (WROOM-32U) with IPEX port and Type-C USB.
+  - 2.4G 3dBi External Antenna (via IPEX) for extended range.
 
-**Sensors:** 3x Capacitive Soil Moisture Sensors (GPIO 32, 34, 35)
-
-1x Water Level **Float Switch** (GPIO 13)
+**Sensors:**
+  - 3x Capacitive Soil Moisture Sensors (v2 Corrosion Resistant) — [GPIO 32, 34, 35]
+  - 1x Water Level **Float Switch** (GPIO 13)
 
 **Actuators:**
-  - 3x Solenoid Valves (GPIO 25, 26, 27)
-  - 1x Main Submersible Pump (GPIO 33)
+  - 3x 12V DC Solenoid Valves (5.5mm barbs) — [GPIO 25, 26, 27]
+  - 1x R385 Diaphragm Pump (DC 6-12V) — [GPIO 33]
+
+**Power & Control:**
+  - 4-Channel MOSFET Pulse Trigger Switch (Optocoupler Isolated) for PWM pump control and valve switching.
+  - Logic Level Converter: 4-channel Bi-directional (BSS138 based) to safely bridge ESP32's 3.3V logic to MOSFET 5V gates.
 
 ## 📦 Installation
 1. Clone this repository into your ESPHome configuration directory.
@@ -44,20 +49,14 @@ esphome run irrigation-system.yaml
 To prevent "jittery" data and false triggers caused by WiFi radio interference, the system uses a robust filtering stack:
 
 **Median Filter:** Takes the middle value from 300 samples (300 seconds) to ignore spikes.
-
 **Linear Calibration:** Maps raw voltage (1.05V - 2.85V) to a 0-100% moisture scale.
-
 **Heartbeat/Delta:** Sends data immediately if a 0.1% change is detected, or at least every 5 minutes regardless of change.
 
 ## 🔒 Safety & Interlock Logic
 The system follows a strict "permission" hierarchy before activating the pump:
 
 **Water Level Check:** water_level_status must be OK.
-
 **State Check:** The pump_main must be currently OFF.
-
 **Cooldown Check:** The cooldown_script must not be running (prevents rapid cycling).
-
 **Time Check:** Must be within the allowed daily time window.
-
 **Hardware Timer:** A physical safety_timer kills all power if the software fails to send a stop command.
