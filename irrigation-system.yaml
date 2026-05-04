@@ -1,3 +1,12 @@
+substitutions:
+  # Set your moisture thresholds here (Percentage %)
+  threshold_hibiscus: "86.0"
+  threshold_ficus: "80.0"
+  threshold_onion: "78.0"
+  # Watering Window (24h format)
+  start_hour: "14"
+  end_hour: "20"
+
 esphome:
   name: "irrigation-system"
   friendly_name: Irrigation System
@@ -77,9 +86,9 @@ script:
   - id: startup_delay_script
     mode: single
     then:
-      - script.execute: cooldown_script # Lock it immediately
+      - script.execute: cooldown_script
       - delay: 5min
-      - script.stop: cooldown_script    # Force unlock after 5 mins
+      - script.stop: cooldown_script
       - logger.log: "Startup stabilization finished. Automation UNLOCKED."
 
 binary_sensor:
@@ -123,14 +132,14 @@ sensor:
         - if:
             condition:
               all:
-                - lambda: 'return x < 85.0;'
+                - lambda: 'return x < ${threshold_hibiscus};'
                 - binary_sensor.is_off: water_level_status
                 - switch.is_off: pump_main
                 - not:
                     script.is_running: cooldown_script
                 - lambda: |-
                     auto hour = id(my_time).now().hour;
-                    return (hour >= 14 && hour < 20);
+                    return (hour >= ${start_hour} && hour < ${end_hour});
             then:
               - logger.log: "Automation: Hibiscus dry, starting watering"
               - switch.turn_on: valve_hibiscus
@@ -160,14 +169,14 @@ sensor:
         - if:
             condition:
               all:
-                - lambda: 'return x < 80.0;' # Limit Ficus
+                - lambda: 'return x < ${threshold_ficus};'
                 - binary_sensor.is_off: water_level_status
                 - switch.is_off: pump_main
                 - not:
                     script.is_running: cooldown_script
                 - lambda: |-
                     auto hour = id(my_time).now().hour;
-                    return (hour >= 14 && hour < 20);
+                    return (hour >= ${start_hour} && hour < ${end_hour});
             then:
               - logger.log: "Automation: Ficus dry, starting watering"
               - switch.turn_on: valve_ficus
@@ -197,14 +206,14 @@ sensor:
         - if:
             condition:
               all:
-                - lambda: 'return x < 78.0;' # Limit Onion
+                - lambda: 'return x < ${threshold_onion};'
                 - binary_sensor.is_off: water_level_status
                 - switch.is_off: pump_main
                 - not:
                     script.is_running: cooldown_script
                 - lambda: |-
                     auto hour = id(my_time).now().hour;
-                    return (hour >= 14 && hour < 20);
+                    return (hour >= ${start_hour} && hour < ${end_hour});
             then:
               - logger.log: "Automation: Onion dry, starting watering"
               - switch.turn_on: valve_onion
