@@ -3,7 +3,11 @@ substitutions:
   threshold_hibiscus: "86.0"
   threshold_ficus: "80.0"
   threshold_onion: "78.0"
-  # Watering Window (24h format)
+  # Irrigation Durations
+  duration_hibiscus: "2min"
+  duration_ficus: "30s"
+  duration_onion: "10s"
+  # Watering window (24h format)
   start_hour: "14"
   end_hour: "20"
 
@@ -54,7 +58,7 @@ script:
   - id: safety_hibiscus
     mode: restart
     then:
-      - delay: 2min
+      - delay: ${duration_hibiscus}
       - logger.log: "Safety Timer (Hibiscus) reached - Shutting down"
       - switch.turn_off: pump_main
       - switch.turn_off: valve_hibiscus
@@ -62,7 +66,7 @@ script:
   - id: safety_onion
     mode: restart
     then:
-      - delay: 10s
+      - delay: ${duration_onion}
       - logger.log: "Safety Timer (Onion) reached - Shutting down"
       - switch.turn_off: pump_main
       - switch.turn_off: valve_onion
@@ -70,7 +74,7 @@ script:
   - id: safety_ficus
     mode: restart
     then:
-      - delay: 30s
+      - delay: ${duration_ficus}
       - logger.log: "Safety Timer (Ficus) reached - Shutting down"
       - switch.turn_off: pump_main
       - switch.turn_off: valve_ficus
